@@ -22,10 +22,11 @@ int main() {
                             std::cerr << "[!] Failed to write data : " << ec.message() << std::endl;
                         }
                         std::cout << "Wrote " << bytes_transferred << " bytes" << std::endl;
-                        });
+                });
             },
             [](std::shared_ptr<ws::WebSocket> ws, std::string&& message) {
                 std::cout << "[+] Got message : " << message << std::endl;
+                ws->async_close();
             }
     );
 

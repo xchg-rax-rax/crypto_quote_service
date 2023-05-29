@@ -45,6 +45,7 @@ class WebSocket : public std::enable_shared_from_this<WebSocket>{
         void run();
         const std::atomic<bool>& is_connected() const { return _connected; }
         void async_write(std::string message, on_write_callback_t on_write_callback);
+        void async_close();
         ~WebSocket() {
             // Should probably implement graceful closing here
             std::cout << "Websocket destroyed" << std::endl;
@@ -61,7 +62,6 @@ class WebSocket : public std::enable_shared_from_this<WebSocket>{
         on_connected_callback_t _on_connected_callback;
         on_read_callback_t _on_read_callback;
         beast::flat_buffer _buffer;
-
 
         void on_resolve(beast::error_code ec, asio::ip::tcp::resolver::results_type results);
         void on_connect(beast::error_code ec, asio::ip::tcp::resolver::results_type::endpoint_type ep);
