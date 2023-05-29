@@ -10,11 +10,23 @@ set(CMAKE_CXX_STANDARD 20)
 project(crypto_query_service)
 add_executable(${PROJECT_NAME} src/main.cpp src/websocket/Websocket.cpp)
 
+# Install OpenSSL
+
+find_package(OpenSSL REQUIRED)
+if(OPENSSL_FOUND)
+  include_directories(${OPENSSL_INCLUDE_DIR})
+  message(STATUS "Using OpenSSL ${OPENSSL_VERSION}")
+else()
+  message(FATAL_ERROR "OpenSSL not found")
+endif()
+target_link_libraries(${PROJECT_NAME} ${OPENSSL_LIBRARIES})
+
 # Install Boost
 set(Boost_USE_STATIC_LIBS OFF)
 set(Boost_USE_MULTITHREADED ON)
 set(Boost_USE_STATIC_RUNTIME OFF)
-find_package(Boost 1.81 REQUIRED COMPONENTS program_options)
+# The following line could probably be modified to reduce binary size, depends on how the linker behaves
+find_package(Boost 1.81 REQUIRED)
 message(STATUS "Boost version: ${Boost_VERSION}")
 target_link_libraries(${PROJECT_NAME} ${Boost_LIBRARIES})
 

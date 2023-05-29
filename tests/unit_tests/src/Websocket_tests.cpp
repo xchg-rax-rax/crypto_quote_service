@@ -12,7 +12,7 @@ TEST(WebsocketTests, ConnectAndDisconectTest) {
                 ioc.run();
             });
     ASSERT_TRUE(ws.connect());
-    ASSERT_TRUE(ws.write("Hello world"));
+    ASSERT_TRUE(ws.write("Hello World"));
     std::string message;
     ASSERT_TRUE(ws.read(message));
     ASSERT_EQ(message, "You sent: Hello World");

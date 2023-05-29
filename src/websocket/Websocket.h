@@ -1,46 +1,49 @@
 #pragma once
 
-#include <iostream>
-#include <cstdint>
-#include <cstddef>
-#include <memory>
-#include <thread>
-#include <string_view>
-
-#include <boost/asio.hpp>
-#include <boost/asio/ip/tcp.hpp>
-#include <boost/asio/connect.hpp>
 #include <boost/asio/io_context.hpp>
+#include <boost/asio/ssl/context.hpp>
+#include <boost/asio/strand.hpp>
+#include <boost/beast.hpp>
+#include <boost/beast/core/tcp_stream.hpp>
+#include <boost/beast/ssl.hpp>
+#include <boost/asio.hpp>
+#include <boost/asio/ssl.hpp>
+#include <boost/beast/websocket/stream.hpp>
+#include <memory>
 
-#include <boost/beast/core.hpp>
-#include <boost/beast/websocket.hpp>
-#include <boost/beast/core/error.hpp>
+using namespace boost;
 
 namespace ws {
-
-class WebSocket {
+class WebSocket : public std::enable_shared_from_this<WebSocket>{
     public:
-        WebSocket(const std::string_view host, 
-                  const std::string_view port, 
-                  const std::string_view target,
-                  boost::asio::io_context& ioc) : 
-            _host{host},
+        WebSocket(std::string host,
+                  const std::string_view port,
+                  const std::string_view endpoint,
+                  asio::io_context& ioc, 
+                  asio::ssl::context& ctx) : 
+            _host{std::move(host)},
             _port{port},
-            _target{target},
-            _ws{ioc},
-            _resovler{ioc}
-        {
-        }
-
-        bool connect();
-        bool read(std::string& message);
-        bool write(const std::string_view message);
-        void close();
+            _endpoint{endpoint},
+            _ioc{ioc},
+            _resolver{asio::make_strand(_ioc)},
+           _ws{asio::make_strand(_ioc), ctx} 
+        {}
+        void run();
     private:
-        const std::string_view _host;
+        std::string _host;
         const std::string_view _port;
-        const std::string_view _target;
-        boost::beast::websocket::stream<boost::asio::ip::tcp::socket> _ws;
-        boost::asio::ip::tcp::resolver _resovler;
+        const std::string_view _endpoint;
+        asio::io_context& _ioc;
+        asio::ip::tcp::resolver _resolver;
+        beast::websocket::stream<asio::ssl::stream<beast::tcp_stream>,true> _ws;
+        beast::flat_buffer _buffer;
+
+        void on_resolve(beast::error_code ec, asio::ip::tcp::resolver::results_type results);
+        void on_connect(beast::error_code ec, asio::ip::tcp::resolver::results_type::endpoint_type ep);
+        void on_ssl_handshake(beast::error_code ec);
+        void on_handshake(beast::error_code ec);
+        void on_write( beast::error_code ec, std::size_t bytes_transferred);
+        void on_read(beast::error_code ec, std::size_t bytes_transferred);
+        void on_close(beast::error_code ec);
 };
 }

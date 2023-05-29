@@ -1,75 +1,163 @@
 #include "Websocket.h"
 
-#include <boost/beast/core/bind_handler.hpp>
-#include <boost/beast/core/buffers_to_string.hpp>
-#include <boost/beast/core/error.hpp>
-#include <boost/beast/core/flat_buffer.hpp>
-#include <boost/beast/core/role.hpp>
-#include <boost/beast/core/stream_traits.hpp>
-#include <boost/beast/websocket/rfc6455.hpp>
-#include <boost/beast/websocket/stream_base.hpp>
-#include <chrono>
 #include <iostream>
-#include <exception>
-#include <system_error>
-
-//#include <boost/beast/websocket/rfc6455.hpp>
+#include <boost/beast/core/stream_traits.hpp>
 
 namespace ws {
 
-bool WebSocket::connect() {
-    try {
-        const auto results = _resovler.resolve(_host, _port);
-        boost::asio::connect(_ws.next_layer(), results.begin(), results.end());
-        _ws.handshake(_host, _target);
-    }
-    catch (const std::exception& e) {
-        std::cerr << "[!] Failed to connect to host " << _host << ":" << _port << " : " << e.what() << std::endl;
-        return false;
-    }
-    std::cout << "[+] Connected to websocket" << std::endl;
-    return true;
+void WebSocket::run() {
+    // need exceptions for error handling
+    _resolver.async_resolve(
+        _host,
+        _port,
+        beast::bind_front_handler(
+            &WebSocket::on_resolve,
+            shared_from_this()));
 }
 
 
-bool WebSocket::read(std::string& message) {
-    try {
-        boost::beast::flat_buffer buffer;
-        boost::beast::error_code ec;
-        _ws.read(buffer, ec);
-        if (ec) {
-            std::cerr << "[!] Read failed : " << ec.message() << std::endl;
-            return false;
+void WebSocket::on_resolve(beast::error_code ec, asio::ip::tcp::resolver::results_type results) {
+    if(ec) {
+        std::cerr << "[!] Failed to resolve host : " << ec.message() << std::endl;
+        return;
+    }
+
+    // Set the timeout for the operation
+    beast::get_lowest_layer(_ws).expires_after(std::chrono::seconds(30));
+
+    // Make the connection on the IP address we get from a lookup
+    beast::get_lowest_layer(_ws).async_connect(results,
+        beast::bind_front_handler(&WebSocket::on_connect, shared_from_this()));
+}
+
+void WebSocket::on_connect(beast::error_code ec, asio::ip::tcp::resolver::results_type::endpoint_type ep) {
+    if(ec) {
+        std::cerr << "[!] Failed to connect to host : " << ec.message() << std::endl;
+        return;
+    }
+
+    // Turn off the timeout on the tcp_stream, because
+    // the websocket stream has its own timeout system.
+    beast::get_lowest_layer(_ws).expires_never();
+
+    // Set suggested timeout settings for the websocket
+    _ws.set_option(beast::websocket::stream_base::timeout::suggested(beast::role_type::client));
+
+    // Set a decorator to change the User-Agent of the handshake
+    _ws.set_option(beast::websocket::stream_base::decorator(
+        [](beast::websocket::request_type& req)
+        {
+            req.set(beast::http::field::user_agent, 
+                    std::string(BOOST_BEAST_VERSION_STRING) + " websocket-client-async");
+        }));
+
+    // Update the host_ string. This will provide the value of the
+    // Host HTTP header during the WebSocket handshake.
+    // See https://tools.ietf.org/html/rfc7230#section-5.4
+    _host += ":" + std::to_string(ep.port());
+
+    // Perform the SSL handshake
+    _ws.next_layer().async_handshake(
+        asio::ssl::stream_base::client,
+        beast::bind_front_handler(
+            &WebSocket::on_ssl_handshake,
+            shared_from_this()));
+}
+
+void WebSocket::on_ssl_handshake(beast::error_code ec) {
+    if(ec) {
+        std::cerr << "[!] Failed to perform SSL handshake : " << ec.message() << std::endl;
+        return;
+    }
+
+    // Turn off the timeout on the tcp_stream, because
+    // the websocket stream has its own timeout system.
+    beast::get_lowest_layer(_ws).expires_never();
+
+    // Set suggested timeout settings for the websocket
+    _ws.set_option(beast::websocket::stream_base::timeout::suggested(beast::role_type::client));
+
+    // Set a decorator to change the User-Agent of the handshake
+    _ws.set_option(beast::websocket::stream_base::decorator(
+        [](beast::websocket::request_type& req) {
+            req.set(beast::http::field::user_agent,
+                std::string(BOOST_BEAST_VERSION_STRING) +
+                    " websocket-client-async-ssl");
         }
-        message = boost::beast::buffers_to_string(buffer.data());
-    }
-    catch (const std::system_error& e) {
-        std::cerr << "[!] Read failed : " << e.what() << std::endl;
-        return false;
-    }
-    return true;
-}
+    ));
 
-bool WebSocket::write(const std::string_view message) {
-    try {
-        boost::beast::error_code ec;
-        _ws.write(boost::asio::buffer(message), ec);
-        if (ec) {
-            std::cerr << "[!] Write failed : " << ec.message() << std::endl;
-            return false;
-        }
-    }
-    catch (const std::system_error& e) {
-        std::cerr << "[!] Write failed : " << e.what() << std::endl;
-        return false;
-    }
-    return true;
+    // Perform the websocket handshake
+    _ws.async_handshake(_host, _endpoint,
+        beast::bind_front_handler(
+            &WebSocket::on_handshake,
+            shared_from_this()));
 }
 
 
-void WebSocket::close() {
-    _ws.close(boost::beast::websocket::close_code::normal);
-    std::cout << "[-] Closed websocket connection to " << _host << ":" << _port << std::endl;
+
+void WebSocket::on_handshake(beast::error_code ec) {
+    if(ec) {
+        std::cerr << "[!] Failed to perform handshake : " << ec.message() << std::endl;
+        return;
+    }
+    
+    // start reading
+    _ws.async_read(
+        _buffer,
+        beast::bind_front_handler(
+            &WebSocket::on_read,
+            shared_from_this()));
+}
+
+/*
+void WebSocket::on_write( beast::error_code ec, std::size_t bytes_transferred) {
+    boost::ignore_unused(bytes_transferred);
+
+    if(ec) {
+        std::cerr << "[!] Failed to write data : " << ec.message() << std::endl;
+        return;
+    }
+    
+    // Read a message into our buffer
+    _ws.async_read(
+        _buffer,
+        beast::bind_front_handler(
+            &WebSocket::on_read,
+            shared_from_this()));
+}
+*/
+
+void WebSocket::on_read(beast::error_code ec, std::size_t bytes_transferred) {
+    boost::ignore_unused(bytes_transferred);
+
+    if(ec) {
+        std::cerr << "[!] Failed to read data : " << ec.message() << std::endl;
+        return;
+    }
+
+    std::cout << beast::make_printable(_buffer.data()) << std::endl;
+
+    // Close the WebSocket connection
+    _ws.async_read(
+        _buffer,
+        beast::bind_front_handler(
+            &WebSocket::on_read,
+            shared_from_this()));
+}
+
+void WebSocket::on_close(beast::error_code ec) {
+    if(ec) {
+        std::cerr << "[!] Failed to close data : " << ec.message() << std::endl;
+        return;
+    }
+
+    // If we get here then the connection is closed gracefully
+
+    // The make_printable() function helps print a ConstBufferSequence
+    std::cout << beast::make_printable(_buffer.data()) << std::endl;
+
+    std::cout << "[-] Closed Connection" << std::endl;
 }
 
 }
+
