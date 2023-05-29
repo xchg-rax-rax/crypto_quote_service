@@ -14,6 +14,7 @@ void WebSocket::run() {
         beast::bind_front_handler(
             &WebSocket::on_resolve,
             shared_from_this()));
+    _ioc.run();
 }
 
 
