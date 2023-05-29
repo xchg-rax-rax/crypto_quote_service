@@ -27,7 +27,8 @@ int main() {
             [](std::shared_ptr<ws::WebSocket> ws, std::string&& message) {
                 std::cout << "[+] Got message : " << message << std::endl;
             }
-            );
+    );
+
     auto handler_thread = std::thread([&](){
                 ioc.run();
             });

@@ -98,15 +98,6 @@ void WebSocket::on_handshake(beast::error_code ec) {
     _on_connected_callback(shared_from_this());
 }
 
-
-void WebSocket::async_write(std::string message, on_write_callback_t on_write_callback) {
-    if (!_connected) {
-        std::cerr << "[!] async_write failed : Websocket connection has not yet been established" << std::endl;
-        return;
-    }
-    _ws.async_write(asio::buffer(message), on_write_callback);
-}
-
 void WebSocket::on_read(beast::error_code ec, std::size_t bytes_transferred) {
     boost::ignore_unused(bytes_transferred);
 
@@ -134,6 +125,15 @@ void WebSocket::on_close(beast::error_code ec) {
     }
 
     std::cout << "[-] Closed Connection" << std::endl;
+}
+
+
+void WebSocket::async_write(std::string message, on_write_callback_t on_write_callback) {
+    if (!_connected) {
+        std::cerr << "[!] async_write failed : Websocket connection has not yet been established" << std::endl;
+        return;
+    }
+    _ws.async_write(asio::buffer(message), on_write_callback);
 }
 
 std::string WebSocket::flat_buffer_to_string(const beast::flat_buffer& buffer) {
