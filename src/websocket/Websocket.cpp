@@ -1,6 +1,7 @@
 #include "Websocket.h"
 
 #include <boost/beast/core/flat_buffer.hpp>
+#include <boost/beast/websocket/rfc6455.hpp>
 #include <iostream>
 #include <boost/beast/core/stream_traits.hpp>
 
@@ -85,7 +86,7 @@ void WebSocket::on_handshake(beast::error_code ec) {
         return;
     }
 
-    std::cout << "[+] Connection established with host : " << _host << ":" << _port << std::endl;
+    std::cout << "[+] Connection established with host : " << _host << std::endl;
     _connected = true;
     // start reading
     _ws.async_read(
@@ -125,6 +126,19 @@ void WebSocket::on_close(beast::error_code ec) {
     }
 
     std::cout << "[-] Closed Connection" << std::endl;
+}
+
+
+void WebSocket::async_close() {
+    if (!_connected) {
+        std::cerr << "[!] async_close failed : Websocket connection has not yet been established" << std::endl;
+        return;
+    }
+    _ws.async_close(
+        beast::websocket::close_code::normal,
+        beast::bind_front_handler(
+            &WebSocket::on_close,
+            shared_from_this()));
 }
 
 
