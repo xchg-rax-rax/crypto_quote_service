@@ -1,5 +1,6 @@
 #pragma once
 
+#include <thread>
 #include <atomic>
 #include <memory>
 #include <iostream>
@@ -16,7 +17,6 @@
 #include <boost/asio/strand.hpp>
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ssl/context.hpp>
-#include <thread>
 
 using namespace boost;
 

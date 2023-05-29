@@ -1,8 +1,9 @@
 #include "Websocket.h"
 
+#include <iostream>
+
 #include <boost/beast/core/flat_buffer.hpp>
 #include <boost/beast/websocket/rfc6455.hpp>
-#include <iostream>
 #include <boost/beast/core/stream_traits.hpp>
 
 namespace ws {

@@ -1,18 +1,19 @@
 #include "websocket/Websocket.h"
-#include <boost/asio/io_context.hpp>
-#include <boost/asio/ssl/context.hpp>
-#include <boost/beast/core/error.hpp>
+
+#include <memory>
 #include <cstddef>
 #include <cstdlib>
 #include <iostream>
-#include <memory>
+
+#include <boost/asio/io_context.hpp>
+#include <boost/asio/ssl/context.hpp>
+
+#include <boost/beast/core/error.hpp>
 
 int main() {
-    // may need to do some additional set up of the ssl context here in order to establish a connection
     // wss://stream.binance.com:9443/ws/btcusdt@trade
     //auto ws = std::make_shared<ws::WebSocket>("stream.binance.com", "9443", "/ws/btcusdt@trade", ioc, ctx);
     //auto ws = std::make_shared<ws::WebSocket>("ws-api.binance.com", "443", "/ws-api/v3", ioc, ctx);
-    
     auto ws = std::make_shared<ws::WebSocket>("localhost", "8443", "/ws-api/v3", 
             [](std::shared_ptr<ws::WebSocket> ws) {
                 ws->async_write("Hi there!", [](beast::error_code ec, std::size_t bytes_transferred) {
@@ -29,7 +30,5 @@ int main() {
     );
 
     ws->run();
-
-    std::cout << "Thread joined" << std::endl;
     return EXIT_SUCCESS;
 }
