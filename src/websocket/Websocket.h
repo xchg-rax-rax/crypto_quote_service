@@ -1,24 +1,26 @@
 #pragma once
 
+#include <thread>
 #include <atomic>
-#include <boost/asio/io_context.hpp>
-#include <boost/asio/ssl/context.hpp>
-#include <boost/asio/strand.hpp>
-#include <boost/beast.hpp>
-#include <boost/beast/core/flat_buffer.hpp>
-#include <boost/beast/core/tcp_stream.hpp>
-#include <boost/beast/ssl.hpp>
-#include <boost/asio.hpp>
-#include <boost/asio/ssl.hpp>
-#include <boost/beast/websocket/stream.hpp>
-#include <functional>
 #include <memory>
 #include <iostream>
+#include <functional>
+
+#include <boost/beast.hpp>
+#include <boost/beast/ssl.hpp>
+#include <boost/beast/core/tcp_stream.hpp>
+#include <boost/beast/core/flat_buffer.hpp>
+#include <boost/beast/websocket/stream.hpp>
+
+#include <boost/asio.hpp>
+#include <boost/asio/ssl.hpp>
+#include <boost/asio/strand.hpp>
+#include <boost/asio/io_context.hpp>
+#include <boost/asio/ssl/context.hpp>
 
 using namespace boost;
 
 namespace ws {
-
 
 class WebSocket : public std::enable_shared_from_this<WebSocket>{
     typedef std::function<void(beast::error_code ec, std::size_t bytes_transferred)> on_write_callback_t;
@@ -28,17 +30,16 @@ class WebSocket : public std::enable_shared_from_this<WebSocket>{
         WebSocket(std::string host,
                   const std::string_view port,
                   const std::string_view endpoint,
-                  asio::io_context& ioc, 
-                  asio::ssl::context& ctx,
                   on_connected_callback_t on_connected_callback,
                   on_read_callback_t on_read_callback
                   ) : 
             _host{std::move(host)},
             _port{port},
             _endpoint{endpoint},
-            _ioc{ioc},
+            _ioc{},
+            _ctx{asio::ssl::context::sslv23},
             _resolver{asio::make_strand(_ioc)},
-           _ws{asio::make_strand(_ioc), ctx},
+           _ws{asio::make_strand(_ioc), _ctx},
            _on_connected_callback{on_connected_callback},
            _on_read_callback{on_read_callback}
         {}
@@ -55,7 +56,8 @@ class WebSocket : public std::enable_shared_from_this<WebSocket>{
         std::string _host;
         const std::string_view _port;
         const std::string_view _endpoint;
-        asio::io_context& _ioc;
+        asio::io_context _ioc;
+        asio::ssl::context _ctx;
         asio::ip::tcp::resolver _resolver;
         beast::websocket::stream<asio::ssl::stream<beast::tcp_stream>,true> _ws;
         // Note that if these do a considerable amount of work or lock etc. they will block the ioc
