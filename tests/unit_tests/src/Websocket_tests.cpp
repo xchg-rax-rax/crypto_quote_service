@@ -1,23 +1,28 @@
 #include "../../../src/websocket/Websocket.h"
 
-#include <boost/beast/core/error.hpp>
 #include <cstddef>
 #include <gtest/gtest.h>
 
 
 TEST(WebsocketTests, ConnectAndDisconectTest) {
-    boost::asio::io_context ioc;
-    auto ws = ws::WebSocket("127.0.0.1", "8888", "/", ioc);
-    auto handler_thread = std::thread([&](){
-                ioc.run();
-            });
-    ASSERT_TRUE(ws.connect());
-    ASSERT_TRUE(ws.write("Hello World"));
-    std::string message;
-    ASSERT_TRUE(ws.read(message));
-    ASSERT_EQ(message, "You sent: Hello World");
-    ws.close();
-    handler_thread.join();
+    auto ws = std::make_shared<ws::WebSocket>("localhost", "8443", "/ws-api/v3", 
+            [](std::shared_ptr<ws::WebSocket> ws) {
+                const std::string message = "Hi there!";
+                ws->async_write(message, [message](beast::error_code ec, std::size_t bytes_transferred) {
+                        if (ec) {
+                            std::cerr << "[!] Failed to write data : " << ec.message() << std::endl;
+                            ASSERT_TRUE(false);
+                        }
+                        ASSERT_EQ(message.size(), bytes_transferred);
+                });
+            },
+            [](std::shared_ptr<ws::WebSocket> ws, std::string&& message) {
+                ASSERT_EQ("You sent: Hi there!", message);
+                ws->async_close();
+            }
+    );
+    ws->run();
+    ASSERT_TRUE(true);
 }
 
 
