@@ -8,12 +8,14 @@ async def handle_websocket(websocket, path):
     while True:
         try:
             message = await websocket.recv()
+            if message == "KILL":
+                await websocket.close()
+                asyncio.get_event_loop().stop()
             print(f"[+] Message received: {message}")
             response = f"You sent: {message}"
             await websocket.send(response)
         except websockets.exceptions.ConnectionClosedOK:
             print("[-] Websocket connection closed")
-            break
 
 ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
 ssl_context.load_cert_chain('certificate.crt', 'private.key')

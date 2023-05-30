@@ -4,7 +4,7 @@
 #include <gtest/gtest.h>
 
 
-TEST(WebsocketTests, ConnectAndDisconectTest) {
+TEST(WebsocketTests, ConnectWriteReadAndDisconectTest) {
     auto ws = std::make_shared<ws::WebSocket>("localhost", "8443", "/ws-api/v3", 
             [](std::shared_ptr<ws::WebSocket> ws) {
                 const std::string message = "Hi there!";
@@ -18,7 +18,9 @@ TEST(WebsocketTests, ConnectAndDisconectTest) {
             },
             [](std::shared_ptr<ws::WebSocket> ws, std::string&& message) {
                 ASSERT_EQ("You sent: Hi there!", message);
-                ws->async_close();
+                std::string next_message = "KILL";
+                ws->async_write(next_message, [ws, next_message](beast::error_code ec, std::size_t bytes_transferred) {
+                });
             }
     );
     ws->run();
