@@ -109,7 +109,7 @@ void WebSocket::on_read(beast::error_code ec, std::size_t bytes_transferred) {
         return;
     }
 
-    std::cout << beast::make_printable(_buffer.data()) << std::endl;
+    //std::cout << beast::make_printable(_buffer.data()) << std::endl;
 
     _ws.async_read(
         _buffer,

@@ -23,10 +23,10 @@ using namespace boost;
 namespace ws {
 
 class WebSocket : public std::enable_shared_from_this<WebSocket>{
-    typedef std::function<void(beast::error_code ec, std::size_t bytes_transferred)> on_write_callback_t;
-    typedef std::function<void(std::shared_ptr<WebSocket>)> on_connected_callback_t;
-    typedef std::function<void(std::shared_ptr<WebSocket>, std::string&&)> on_read_callback_t;
     public:
+        typedef std::function<void(std::shared_ptr<WebSocket>, std::string&&)> on_read_callback_t;
+        typedef std::function<void(beast::error_code ec, std::size_t bytes_transferred)> on_write_callback_t;
+        typedef std::function<void(std::shared_ptr<WebSocket>)> on_connected_callback_t;
         WebSocket(std::string host,
                   const std::string_view port,
                   const std::string_view endpoint,
